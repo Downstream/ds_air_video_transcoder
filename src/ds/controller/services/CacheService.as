@@ -24,7 +24,8 @@ package ds.controller.services
 		
 		private var checkTimer:Timer;
 		
-		private var sqlPath:String = "downstream/video_transcoder/file_cache.sqlite";
+		private var sqlDir:String = "downstream/video_transcoder/"
+		private var sqlPath:String = sqlDir + "file_cache.sqlite";
 		
 		private var invalidExtensions:Vector.<String> = new Vector.<String>;
 		
@@ -35,7 +36,6 @@ package ds.controller.services
 			
 			createDb();
 			
-			var f:File = new File();
 			initSql = new SQLQuery( File.documentsDirectory.resolvePath(sqlPath).nativePath, false);
 			initSql.addEventListener(QueryEvent.LOAD_ERROR, sqError, false, 0, true);
 			initSql.addEventListener(QueryEvent.LOAD_COMPLETE, startUpWatchDir, false, 0, true);
@@ -58,7 +58,10 @@ package ds.controller.services
 		}
 		
 		private function createDb():void {
-			var createSql:SQLQuery = new SQLQuery( File.documentsDirectory.resolvePath(sqlPath).nativePath, false, SQLMode.CREATE);
+			var f:File = File.documentsDirectory.resolvePath(sqlDir);
+			f.createDirectory();
+			f = File.documentsDirectory.resolvePath(sqlPath);
+			var createSql:SQLQuery = new SQLQuery( f.nativePath, false, SQLMode.CREATE);
 			createSql.addEventListener(QueryEvent.LOAD_ERROR, sqError, false, 0, true);
 			createSql.addEventListener(IOErrorEvent.IO_ERROR, sqError, false, 0, true);
 			createSql.query( "CREATE TABLE IF NOT EXISTS WatchDir (WatchID INTEGER PRIMARY KEY  AUTOINCREMENT  NOT NULL  UNIQUE , WatchPath TEXT)");
