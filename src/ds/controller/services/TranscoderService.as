@@ -6,6 +6,7 @@ package ds.controller.services
 	import flash.desktop.NativeApplication;
 	import flash.desktop.NativeProcess;
 	import flash.desktop.NativeProcessStartupInfo;
+	import flash.desktop.SystemIdleMode;
 	import flash.events.Event;
 	import flash.events.EventDispatcher;
 	import flash.events.IEventDispatcher;
@@ -13,6 +14,7 @@ package ds.controller.services
 	import flash.events.NativeProcessExitEvent;
 	import flash.events.ProgressEvent;
 	import flash.filesystem.File;
+	import flash.net.FileReference;
 	
 	public class TranscoderService extends EventDispatcher
 	{
@@ -20,9 +22,14 @@ package ds.controller.services
 		private var processInfo:NativeProcess;
 		private var destinationPath:String;
 		private var destinationPathSet:Boolean = false;
+		
+		private var curFile:FileVO; // the currently transcoding file
+		private var curFileDestPath:String; // when the current video is done, it is moved here
+		private var curFileTempPath:String; // while a video is transcoding, it's here
+		
 		private var requestQueue:Vector.<FileVO> = new Vector.<FileVO>;
-		private var curFile:FileVO;
 		private var processing:Boolean = false;
+		
 		public function TranscoderService()
 		{
 			processInfo = new NativeProcess();
@@ -40,7 +47,7 @@ package ds.controller.services
 			processTranscode.addEventListener(IOErrorEvent.STANDARD_ERROR_IO_ERROR, onIOError);
 			
 			var fileDest:File = File.documentsDirectory.resolvePath("downstream/encoded_videos");
-			fileDest.createDirectory();
+			if(!fileDest.exists) fileDest.createDirectory();
 			destinationPath = fileDest.nativePath;
 			super();
 		}
@@ -67,12 +74,13 @@ package ds.controller.services
 		}
 		
 		public function cancelTranscode(target:FileVO):void {
+			if(!target) return;
 			for each(var fvo:FileVO in requestQueue){
 				if(target.filePath == fvo.filePath){
 					requestQueue.splice(requestQueue.indexOf(fvo), 1);
 				}
 			}
-			if(target.filePath == curFile.filePath){
+			if(curFile && target.filePath == curFile.filePath){
 				if(processInfo.running) processInfo.exit(true);
 				if(processTranscode.running) processTranscode.exit(true);
 				dispatchEvent(new TranscodeProgressEvent(TranscodeProgressEvent.TRANSCODE_ERROR, curFile, 1.0));
@@ -121,6 +129,7 @@ package ds.controller.services
 			var minutes:Number = int(duration.substr(2,2));
 			var seconds:Number = Number(duration.substr(5));
 			var dur:Number = (hours * 60 * 60) + (minutes * 60) + seconds;
+			
 			if(int(frames) < 1){
 				var rate:String = parseVariable("r_frame_rate=","|", retStr, vidSection);
 				var rateNum:Number = Number(rate);
@@ -130,8 +139,8 @@ package ds.controller.services
 					rateNum = rateUp / rateDown;
 				}
 				frames = (dur * rateNum);
-
 			}
+			
 			curFile.vidDuration = dur;
 			curFile.vidFrames = frames;
 			curFile.vidHeight = height;
@@ -165,6 +174,9 @@ package ds.controller.services
 			var nativeProcessStartupInfo:NativeProcessStartupInfo = new NativeProcessStartupInfo();
 			nativeProcessStartupInfo.executable = ffmpeg;			
 			
+			curFileDestPath = destinationPath + "\\" + curFile.fileName.substr(0,curFile.fileName.length - curFile.fileExtension.length) + "mp4";
+			curFileTempPath = File.applicationStorageDirectory.nativePath + "\\" + curFile.fileName + ".mp4";
+			
 			var processArgs:Vector.<String> = new Vector.<String>;
 			processArgs.push("-y");
 			processArgs.push("-i");
@@ -183,7 +195,7 @@ package ds.controller.services
 			processArgs.push("12");		
 			processArgs.push("-level");		
 			processArgs.push("5.1");
-			processArgs.push(destinationPath + "\\" + curFile.fileName + ".mp4");
+			processArgs.push(curFileTempPath);
 			nativeProcessStartupInfo.arguments = processArgs;
 			
 			processTranscode.start(nativeProcessStartupInfo);
@@ -207,10 +219,18 @@ package ds.controller.services
 		
 		private function onExit(event:NativeProcessExitEvent):void {
 			if(event.exitCode == 0){
+				var f:File = new File(curFileTempPath);
+				var dest:File = new File(curFileDestPath);
+				try{
+					f.moveTo(dest, true);
+				} catch(e:Error){
+					trace(e);
+				}
 				dispatchEvent(new TranscodeProgressEvent(TranscodeProgressEvent.TRANSCODE_COMPLETE, curFile, 1.0));
 			} else {
 				dispatchEvent(new TranscodeProgressEvent(TranscodeProgressEvent.TRANSCODE_ERROR, curFile, 1.0));
 			}
+			curFile = null;
 			processing = false;
 			checkQueue();
 		}

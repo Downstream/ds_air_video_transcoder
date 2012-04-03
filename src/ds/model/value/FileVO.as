@@ -4,6 +4,7 @@ package ds.model.value
 	{
 		public var filePath:String;
 		public var fileName:String;
+		public var fileExtension:String;
 		public var fileModDate:String;
 		
 		public var vidWidth:int;
@@ -13,10 +14,11 @@ package ds.model.value
 		
 		public var transcodeComplete:Boolean = false;
 		
-		public function FileVO(theName:String, path:String)
+		public function FileVO(theName:String, path:String, extension:String)
 		{
 			fileName = theName;
 			filePath = path;
+			fileExtension = extension;
 		}
 	}
 }

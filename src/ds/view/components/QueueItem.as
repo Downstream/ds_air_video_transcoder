@@ -48,6 +48,7 @@ package ds.view.components
 			addChild(transcodeStatus);
 			addChild(clearBtn);
 			layout();
+			stage.addEventListener(Event.RESIZE, stageResize, false, 0, true);
 		}
 		
 		private function stageResize(e:Event):void {
@@ -55,10 +56,10 @@ package ds.view.components
 		}
 		
 		private function layout():void {
-			fileLabel.width = stage.stageWidth / 5;
+			fileLabel.width = stage.stageWidth / 3;
 			fileLabel.x = 25;
-			transcodeStatus.width = stage.stageWidth / 5;
-			transcodeStatus.x = stage.stageWidth / 5 + 35;
+			transcodeStatus.width = stage.stageWidth / 6;
+			transcodeStatus.x = stage.stageWidth / 3 + 35;
 			clearBtn.x = 5;
 			clearBtn.y = 1;
 		}
@@ -80,6 +81,7 @@ package ds.view.components
 		}
 		
 		public function destroy():void {
+			stage.removeEventListener(Event.RESIZE, stageResize);
 			fileLabel.parent.removeChild(fileLabel);
 			fileLabel = null;
 			transcodeStatus.parent.removeChild(transcodeStatus);

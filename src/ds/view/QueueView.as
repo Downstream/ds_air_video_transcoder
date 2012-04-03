@@ -142,7 +142,7 @@ package ds.view
 					TweenLite.to(qi, 0.25, {alpha:0, onComplete:killItem, onCompleteParams:[qi]});
 					qi.removeEventListener(Event.CLEAR, itemClear);
 					queueItems.splice(queueItems.indexOf(qi), 1);
-					fvs.push( new FileVO(qi.fileName, qi.filePath));
+					fvs.push( new FileVO(qi.fileName, qi.filePath, ""));
 					layoutItems();
 				}
 			}	

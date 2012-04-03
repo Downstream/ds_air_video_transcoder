@@ -13,6 +13,7 @@ package ds.controller.services
 	import flash.events.TimerEvent;
 	import flash.filesystem.File;
 	import flash.utils.Timer;
+	import flash.utils.flash_proxy;
 	
 	public class CacheService extends EventDispatcher
 	{
@@ -31,7 +32,7 @@ package ds.controller.services
 		
 		public function CacheService()
 		{
-			invalidExtensions.push("db","sqlite","pdf","doc");
+			invalidExtensions.push("db","sqlite","pdf","doc", "ini");
 			super();
 			
 			createDb();
@@ -90,7 +91,7 @@ package ds.controller.services
 			watchDirectory = path;
 			if(watchDirectory != "NULL"){
 				scanDirectory(watchDirectory);
-				checkTimer = new Timer(2000);
+				checkTimer = new Timer(15000);
 				checkTimer.addEventListener(TimerEvent.TIMER, checkTimerHandler, false, 0, true);
 				checkTimer.reset();
 				checkTimer.start();
@@ -117,7 +118,9 @@ package ds.controller.services
 			cachedFiles = null;
 			cachedFiles = new Vector.<FileVO>;
 			for(var i:int = 0; i < e.data.length; i++){
-				var fvo:FileVO = new FileVO(e.data[i].FileName, e.data[i].FilePath);
+				var f:File = new File(e.data[i].FilePath);
+				if(!f.exists) continue;
+				var fvo:FileVO = new FileVO(f.name, f.nativePath, f.extension);
 				fvo.fileModDate = e.data[i].FileModified;
 				fvo.transcodeComplete = e.data[i].Complete;
 				cachedFiles.push(fvo);
@@ -151,7 +154,7 @@ package ds.controller.services
 		// returns true if this file has already been converted
 		private function checkAgainstCache(path:String, modDate:Date):Boolean {
 			for each(var fvo:FileVO in cachedFiles){
-				if(fvo.filePath == path && dateToString(modDate) == fvo.fileModDate){
+				if(fvo.filePath == path && dateToString(modDate) == fvo.fileModDate && fvo.transcodeComplete == 1){
 					return true;
 				}	
 			}
@@ -163,7 +166,7 @@ package ds.controller.services
 			if(!validateExtension(file.extension)) return;
 			writeQuery.query("INSERT INTO Files (FilePath, FileModified, FileName, Complete) VALUES ('" + file.nativePath + "','" + dateToString(file.modificationDate) + "','" + file.name + "', 0)");
 			var fv:Vector.<FileVO> = new Vector.<FileVO>;
-			var fvo:FileVO = new FileVO(file.name, file.nativePath);
+			var fvo:FileVO = new FileVO(file.name, file.nativePath, file.extension);
 			fvo.fileModDate = dateToString(file.modificationDate);
 			fv.push( fvo );
 			cachedFiles.push(fvo);
