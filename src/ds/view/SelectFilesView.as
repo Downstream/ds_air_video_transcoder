@@ -98,10 +98,14 @@ package ds.view
 		}
 		
 		private function selectMultiple(e:FileListEvent):void {
+/*			var f:File = e.files[0];
+			var dest:File = File.documentsDirectory.resolvePath("downstream/encoded_videos/test.wmv");
+			trace(dest.exists);
+			f.moveTo(dest, true);*/
 			var filePaths:Vector.<FileVO> = new Vector.<FileVO>;
 			for( var i:int = 0; i < e.files.length; i++){
 				var f:File = e.files[i] as File;
-				var fvo:FileVO = new FileVO(f.name, f.nativePath);
+				var fvo:FileVO = new FileVO(f.name, f.nativePath, f.extension);
 				filePaths.push(fvo);
 			}
 			dispatchEvent(new TranscodeRequest(TranscodeRequest.TRANSCODE_FILES, filePaths));

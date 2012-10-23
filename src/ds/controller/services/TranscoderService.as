@@ -1,5 +1,7 @@
 package ds.controller.services
 {
+	import ds.app.DsTrace;
+	import ds.app.UpdateableApplication;
 	import ds.controller.events.TranscodeProgressEvent;
 	import ds.model.value.FileVO;
 	
@@ -83,12 +85,14 @@ package ds.controller.services
 			if(curFile && target.filePath == curFile.filePath){
 				if(processInfo.running) processInfo.exit(true);
 				if(processTranscode.running) processTranscode.exit(true);
+				DsTrace.logWarning("Target is the same as the source");
 				dispatchEvent(new TranscodeProgressEvent(TranscodeProgressEvent.TRANSCODE_ERROR, curFile, 1.0));
 				checkQueue();
 			}
 		}
 		
 		private function checkQueue():void{
+			DsTrace.log("Checking queue. Queue size=", requestQueue.length);
 			if(destinationPathSet && !processing && requestQueue.length > 0){
 				curFile = requestQueue[0];
 				requestQueue.shift();
@@ -97,9 +101,16 @@ package ds.controller.services
 		}
 		
 		private function getCurFileInfo():void {
-			var ffmpeg:File = File.applicationDirectory.resolvePath("assets/ffprobe.exe");
+			DsTrace.log("Getting file info for:", curFile.filePath);
+			if(NativeProcess.isSupported){
+				DsTrace.log("Native process is supported.");
+			} else {
+				DsTrace.logWarning("Native process is NOT supported.");
+			}
+			var ffmpeg:File = File.applicationDirectory.resolvePath("ffprobe.exe");
 			var nativeProcessStartupInfo:NativeProcessStartupInfo = new NativeProcessStartupInfo();
-			nativeProcessStartupInfo.executable = ffmpeg;			
+			nativeProcessStartupInfo.executable = ffmpeg;	
+			nativeProcessStartupInfo.workingDirectory = File.applicationDirectory;		
 			// ffprobe -show_streams -pretty -sexagesimal -pretty -print_format compact -i \"" + path  + "\" 2>&1"; 
 			var processArgs:Vector.<String> = new Vector.<String>;
 			processArgs.push("-show_streams");
@@ -119,6 +130,7 @@ package ds.controller.services
 		
 		private function onInfoOutput(event:ProgressEvent):void {
 			var retStr:String = processInfo.standardOutput.readUTFBytes(processInfo.standardOutput.bytesAvailable);
+			DsTrace.log("info:",retStr);
 			var vidSection:int = retStr.indexOf("codec_type=video");
 			if(vidSection < 0) vidSection = 0;
 			var width:int = int(parseVariable("width=", "|", retStr, vidSection));
@@ -169,10 +181,12 @@ package ds.controller.services
 			transcodeCurFile();
 		}
 		
-		private function transcodeCurFile():void{				
-			var ffmpeg:File = File.applicationDirectory.resolvePath("assets/ffmpeg.exe");
+		private function transcodeCurFile():void{			
+			DsTrace.log("Starting transcode of", curFile.fileName);
+			var ffmpeg:File = File.applicationDirectory.resolvePath("ffmpeg.exe");
 			var nativeProcessStartupInfo:NativeProcessStartupInfo = new NativeProcessStartupInfo();
-			nativeProcessStartupInfo.executable = ffmpeg;			
+			nativeProcessStartupInfo.executable = ffmpeg;		
+			nativeProcessStartupInfo.workingDirectory = File.applicationDirectory;
 			
 			curFileDestPath = destinationPath + "\\" + curFile.fileName.substr(0,curFile.fileName.length - curFile.fileExtension.length) + "mp4";
 			curFileTempPath = File.applicationStorageDirectory.nativePath + "\\" + curFile.fileName + ".mp4";
@@ -210,14 +224,16 @@ package ds.controller.services
 		// FFprobe sends output to the error stream by default
 		private function onErrorData(event:ProgressEvent):void {
 			if(!processTranscode || !processTranscode.running) return;
-			var retStr:String = processTranscode.standardError.readUTFBytes(processTranscode.standardError.bytesAvailable);			
+			var retStr:String = processTranscode.standardError.readUTFBytes(processTranscode.standardError.bytesAvailable);	
+			DsTrace.log(retStr);
 			var curFrame:int = int(parseVariable("frame=", " fps=", retStr));
 			var curPercent:Number = curFrame / curFile.vidFrames;
 			if(curPercent > 1.0) curPercent = 1.0;			
 			if(curPercent > 0.0) dispatchEvent(new TranscodeProgressEvent(TranscodeProgressEvent.TRANSCODE_PROGRESS, curFile, curPercent));
 		}
 		
-		private function onExit(event:NativeProcessExitEvent):void {
+		private function onExit(event:NativeProcessExitEvent):void {	
+			DsTrace.log("Transcode process exit", event);
 			if(event.exitCode == 0){
 				var f:File = new File(curFileTempPath);
 				var dest:File = new File(curFileDestPath);
@@ -228,6 +244,7 @@ package ds.controller.services
 				}
 				dispatchEvent(new TranscodeProgressEvent(TranscodeProgressEvent.TRANSCODE_COMPLETE, curFile, 1.0));
 			} else {
+				DsTrace.logWarning("Error transcoding, Exit code:",event.exitCode);
 				dispatchEvent(new TranscodeProgressEvent(TranscodeProgressEvent.TRANSCODE_ERROR, curFile, 1.0));
 			}
 			curFile = null;
@@ -236,7 +253,7 @@ package ds.controller.services
 		}
 		
 		private function onIOError(event:IOErrorEvent):void {
-			trace(event.toString());
+			DsTrace.logWarning(event.toString());
 		}
 		
 		public function appExit():void {
