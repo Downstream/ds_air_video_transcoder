@@ -107,25 +107,29 @@ package ds.controller.services
 			} else {
 				DsTrace.logWarning("Native process is NOT supported.");
 			}
-			var ffmpeg:File = File.applicationDirectory.resolvePath("ffprobe.exe");
-			var nativeProcessStartupInfo:NativeProcessStartupInfo = new NativeProcessStartupInfo();
-			nativeProcessStartupInfo.executable = ffmpeg;	
-			nativeProcessStartupInfo.workingDirectory = File.applicationDirectory;		
-			// ffprobe -show_streams -pretty -sexagesimal -pretty -print_format compact -i \"" + path  + "\" 2>&1"; 
-			var processArgs:Vector.<String> = new Vector.<String>;
-			processArgs.push("-show_streams");
-			processArgs.push("-pretty");
-			processArgs.push("-sexagesimal");
-			processArgs.push("-pretty");
-			processArgs.push("-print_format");
-			processArgs.push("compact");
-			//processArgs.push("-count_frames");
-			processArgs.push("-i");
-			processArgs.push(curFile.filePath);
-			nativeProcessStartupInfo.arguments = processArgs;
-			
-			processInfo.start(nativeProcessStartupInfo);
-			processing = true;
+			try{
+				var ffmpeg:File = File.applicationDirectory.resolvePath("ffprobe.exe");
+				var nativeProcessStartupInfo:NativeProcessStartupInfo = new NativeProcessStartupInfo();
+				nativeProcessStartupInfo.executable = ffmpeg;	
+				nativeProcessStartupInfo.workingDirectory = File.applicationDirectory;		
+				// ffprobe -show_streams -pretty -sexagesimal -pretty -print_format compact -i \"" + path  + "\" 2>&1"; 
+				var processArgs:Vector.<String> = new Vector.<String>;
+				processArgs.push("-show_streams");
+				processArgs.push("-pretty");
+				processArgs.push("-sexagesimal");
+				processArgs.push("-pretty");
+				processArgs.push("-print_format");
+				processArgs.push("compact");
+				//processArgs.push("-count_frames");
+				processArgs.push("-i");
+				processArgs.push(curFile.filePath);
+				nativeProcessStartupInfo.arguments = processArgs;
+				
+				processInfo.start(nativeProcessStartupInfo);
+				processing = true;
+			} catch(e:Error){
+				DsTrace.logWarning("File info error:", e);
+			}
 		}
 		
 		private function onInfoOutput(event:ProgressEvent):void {

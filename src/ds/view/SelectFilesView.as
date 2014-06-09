@@ -1,19 +1,22 @@
 package ds.view
 {
-	import ds.controller.events.SelectDirectoryEvent;
-	import ds.controller.events.TranscodeRequest;
-	import ds.model.value.FileVO;
-	import ds.view.components.LabelledButton;
-	
+	import flash.desktop.ClipboardFormats;
+	import flash.desktop.NativeDragManager;
 	import flash.display.Sprite;
 	import flash.events.Event;
 	import flash.events.FileListEvent;
 	import flash.events.MouseEvent;
+	import flash.events.NativeDragEvent;
 	import flash.filesystem.File;
 	import flash.text.TextField;
 	import flash.text.TextFieldAutoSize;
 	import flash.text.TextFormat;
 	import flash.text.TextFormatAlign;
+	
+	import ds.controller.events.SelectDirectoryEvent;
+	import ds.controller.events.TranscodeRequest;
+	import ds.model.value.FileVO;
+	import ds.view.components.LabelledButton;
 	
 	public class SelectFilesView extends Sprite
 	{
@@ -63,9 +66,33 @@ package ds.view
 		
 		private function ats(e:Event):void {
 			stage.addEventListener(Event.RESIZE, stageResize, false, 0, true);
+			
+			stage.addEventListener(NativeDragEvent.NATIVE_DRAG_ENTER, onDragIn);
+			stage.addEventListener(NativeDragEvent.NATIVE_DRAG_DROP, onDragDrop);
+			
 			layout();
 		}
 		
+		private function onDragIn(e:NativeDragEvent):void {
+			if(e.clipboard.hasFormat(ClipboardFormats.FILE_LIST_FORMAT)){
+				NativeDragManager.acceptDragDrop(stage);
+			}
+		}
+		
+		private function onDragDrop(e:NativeDragEvent):void {
+			if(e.clipboard.hasFormat(ClipboardFormats.FILE_LIST_FORMAT)){
+				var data:Array = e.clipboard.getData(ClipboardFormats.FILE_LIST_FORMAT) as Array;
+				if(data && data.length > 0){
+					var filePaths:Vector.<FileVO> = new Vector.<FileVO>;
+					for( var i:int = 0; i < data.length; i++){
+						var f:File = data[i] as File;
+						var fvo:FileVO = new FileVO(f.name, f.nativePath, f.extension);
+						filePaths.push(fvo);
+					}
+					dispatchEvent(new TranscodeRequest(TranscodeRequest.TRANSCODE_FILES, filePaths));
+				}
+			}
+		}
 		
 		private function stageResize(e:Event):void {
 			layout();
